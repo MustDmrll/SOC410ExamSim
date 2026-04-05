@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOC 410 — Vize Simülasyonu</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,700;1,300&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg: #0d0f14;
+  --surface: #13161e;
+  --surface2: #1a1e2a;
+  --border: #252a38;
+  --border2: #2f3547;
+  --text: #e8e4d9;
+  --text-muted: #7a7f96;
+  --text-dim: #454d66;
+  --accent: #c9a96e;
+  --accent-dim: rgba(201,169,110,0.12);
+  --accent-glow: rgba(201,169,110,0.25);
+  --green: #5dba8f;
+  --green-dim: rgba(93,186,143,0.12);
+  --red: #e0736a;
+  --red-dim: rgba(224,115,106,0.12);
+  --blue: #7ba4d4;
+  --blue-dim: rgba(123,164,212,0.12);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Crimson Pro', Georgia, serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── BG NOISE TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ════════════════════════════════════════
+   SCREEN SYSTEM
+════════════════════════════════════════ */
+.screen { display:none; min-height:100vh; position:relative; z-index:1; }
+.screen.active { display:flex; flex-direction:column; }
+
+/* ════════════════════════════════════════
+   HOME / SPLASH
+════════════════════════════════════════ */
+#screen-home {
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.home-wrap {
+  max-width: 640px;
+  width: 100%;
+  text-align: center;
+}
+
+.home-eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 20px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.1s forwards;
+}
+
+.home-title {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(42px, 8vw, 72px);
+  font-weight: 700;
+  line-height: 1.0;
+  color: var(--text);
+  margin-bottom: 8px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.25s forwards;
+}
+
+.home-title em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.home-sub {
+  font-size: 18px;
+  color: var(--text-muted);
+  margin-bottom: 50px;
+  font-style: italic;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.4s forwards;
+}
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.55s forwards;
+}
+
+.mode-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 20px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.mode-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-dim);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.mode-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.mode-card:hover::before { opacity: 1; }
+.mode-card.selected { border-color: var(--accent); background: var(--surface2); }
+.mode-card.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 12px; right: 14px;
+  color: var(--accent);
+  font-size: 14px;
+  font-family: 'DM Mono', monospace;
+}
+.mode-icon { font-size: 28px; margin-bottom: 10px; }
+.mode-name {
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+.mode-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+.topic-filter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.65s forwards;
+}
+.topic-filter-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+.topic-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-muted);
+}
+.chip.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-start {
+  background: var(--accent);
+  color: #0d0f14;
+  border: none;
+  padding: 16px 48px;
+  border-radius: 8px;
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.75s forwards;
+}
+.btn-start:hover { transform: translateY(-2px); box-shadow: 0 8px 30px var(--accent-glow); }
+
+/* ════════════════════════════════════════
+   QUIZ SCREEN
+════════════════════════════════════════ */
+#screen-quiz {
+  flex-direction: column;
+}
+
+.quiz-top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(13,15,20,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.quiz-top-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+.q-counter {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.progress-bar-wrap {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+.timer-display {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 5px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.timer-display.warn { color: var(--red); border-color: var(--red); }
+
+.score-live {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.quiz-body {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px 60px;
+}
+
+.q-card {
+  max-width: 720px;
+  width: 100%;
+  animation: fadeUp 0.35s forwards;
+}
+
+.q-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.q-type-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.badge-mcq { color: var(--blue); border-color: rgba(123,164,212,0.4); background: var(--blue-dim); }
+.badge-term { color: var(--green); border-color: rgba(93,186,143,0.4); background: var(--green-dim); }
+.badge-connect { color: var(--accent); border-color: rgba(201,169,110,0.4); background: var(--accent-dim); }
+
+.q-topic-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.q-text {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(18px, 3vw, 24px);
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--text);
+  margin-bottom: 32px;
+}
+.q-text strong { font-weight: 700; color: var(--accent); }
+
+/* MCQ Options */
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.opt-btn {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 16px 20px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  transition: all 0.15s;
+  color: var(--text);
+  font-family: 'Crimson Pro', serif;
+  font-size: 16px;
+  line-height: 1.5;
+  width: 100%;
+}
+.opt-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface2);
+}
+.opt-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  display: flex; align-items:center; justify-content:center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.15s;
+}
+.opt-btn:hover:not(:disabled) .opt-label { border-color: var(--accent); color: var(--accent); }
+
+.opt-btn.correct {
+  border-color: var(--green);
+  background: var(--green-dim);
+  pointer-events: none;
+}
+.opt-btn.correct .opt-label { border-color: var(--green); color: var(--green); background: rgba(93,186,143,0.15); }
+.opt-btn.wrong {
+  border-color: var(--red);
+  background: var(--red-dim);
+  pointer-events: none;
+}
+.opt-btn.wrong .opt-label { border-color: var(--red); color: var(--red); }
+.opt-btn.reveal-correct {
+  border-color: rgba(93,186,143,0.3);
+  background: rgba(93,186,143,0.05);
+  pointer-events: none;
+}
+.opt-btn.reveal-correct .opt-label { border-color: var(--green); color: var(--green); }
+.opt-btn:disabled { cursor: default; }
+
+/* Term Match / Fill */
+.term-prompt {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+.term-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 16px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  margin-bottom: 16px;
+  resize: vertical;
+  min-height: 80px;
+}
+.term-input:focus { border-color: var(--accent); }
+.term-input.correct-input { border-color: var(--green); background: var(--green-dim); }
+.term-input.wrong-input { border-color: var(--red); background: var(--red-dim); }
+
+/* Feedback box */
+.feedback-box {
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  font-size: 15px;
+  line-height: 1.65;
+  display: none;
+}
+.feedback-box.show { display: block; animation: fadeUp 0.25s forwards; }
+.feedback-box.correct-fb { background: var(--green-dim); border: 1px solid rgba(93,186,143,0.35); }
+.feedback-box.wrong-fb { background: var(--red-dim); border: 1px solid rgba(224,115,106,0.35); }
+.fb-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.correct-fb .fb-label { color: var(--green); }
+.wrong-fb .fb-label { color: var(--red); }
+.fb-text { color: var(--text); }
+.fb-text em { color: var(--accent); font-style: normal; font-weight: 600; }
+
+/* Buttons */
+.q-actions { display: flex; gap: 12px; }
+.btn-check {
+  background: var(--accent);
+  color: #0d0f14;
+  border: none;
+  padding: 13px 32px;
+  border-radius: 8px;
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-check:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-check:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+.btn-next {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border2);
+  padding: 13px 32px;
+  border-radius: 8px;
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: none;
+}
+.btn-next:hover { border-color: var(--accent); color: var(--accent); }
+.btn-next.show { display: block; }
+
+.btn-skip {
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  padding: 13px 20px;
+  border-radius: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: color 0.15s;
+  text-transform: uppercase;
+}
+.btn-skip:hover { color: var(--text-muted); }
+
+/* ════════════════════════════════════════
+   RESULTS SCREEN
+════════════════════════════════════════ */
+#screen-results {
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+.results-wrap { max-width: 680px; width: 100%; }
+
+.results-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.grade-circle {
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  margin: 0 auto 24px;
+  background: var(--accent-dim);
+  position: relative;
+}
+.grade-circle::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px solid rgba(201,169,110,0.2);
+}
+.grade-score {
+  font-family: 'Fraunces', serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.grade-total {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+.grade-label {
+  font-family: 'Fraunces', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.grade-sublabel { font-size: 15px; color: var(--text-muted); font-style: italic; }
+
+.results-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 30px;
+}
+.stat-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+.stat-val {
+  font-family: 'Fraunces', serif;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.stat-val.green { color: var(--green); }
+.stat-val.red { color: var(--red); }
+.stat-val.gold { color: var(--accent); }
+.stat-lbl { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; }
+
+.topic-breakdown {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.breakdown-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.topic-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.topic-row:last-child { margin-bottom: 0; }
+.topic-row-name { font-size: 13px; color: var(--text-muted); min-width: 160px; }
+.topic-bar-bg {
+  flex: 1; height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.topic-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  transition: width 1s ease;
+}
+.topic-pct {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 30px;
+  text-align: right;
+}
+
+.review-list {
+  margin-bottom: 24px;
+}
+.review-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.review-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+.review-item.ri-wrong { border-left: 3px solid var(--red); }
+.review-item.ri-correct { border-left: 3px solid var(--green); }
+.ri-q { font-size: 14px; color: var(--text); margin-bottom: 6px; }
+.ri-your { font-size: 13px; color: var(--red); margin-bottom: 3px; }
+.ri-correct-ans { font-size: 13px; color: var(--green); }
+.ri-tag { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-dim); margin-bottom: 6px; }
+
+.results-actions { display: flex; gap: 12px; justify-content: center; }
+.btn-retry {
+  background: var(--accent);
+  color: #0d0f14;
+  border: none;
+  padding: 14px 36px;
+  border-radius: 8px;
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-retry:hover { transform: translateY(-2px); box-shadow: 0 8px 30px var(--accent-glow); }
+.btn-home {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border2);
+  padding: 14px 36px;
+  border-radius: 8px;
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-home:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(16px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── Keyboard hint ── */
+.kb-hint {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 14px;
+  letter-spacing: 0.5px;
+}
+.kb-key {
+  display: inline-block;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 9px;
+  color: var(--text-dim);
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     HOME SCREEN
+════════════════════════════════════════ -->
+<div id="screen-home" class="screen active">
+  <div class="home-wrap">
+    <div class="home-eyebrow">SOC 410 &nbsp;·&nbsp; Vize Hazırlık</div>
+    <div class="home-title"><em>Exam</em><br>Simulator</div>
+    <div class="home-sub">By Mustafa Demirel</div>
+
+    <div class="mode-grid">
+      <div class="mode-card selected" data-mode="mixed" onclick="selectMode(this)">
+        <div class="mode-icon">🎲</div>
+        <div class="mode-name">Karışık Mod</div>
+        <div class="mode-desc">Tüm soru tiplerinden rastgele — MCQ, terim, eşleştirme</div>
+      </div>
+      <div class="mode-card" data-mode="mcq" onclick="selectMode(this)">
+        <div class="mode-icon">◉</div>
+        <div class="mode-name">Çoktan Seçmeli</div>
+        <div class="mode-desc">Sadece Part A formatında — 4 seçenekli sorular</div>
+      </div>
+      <div class="mode-card" data-mode="term" onclick="selectMode(this)">
+        <div class="mode-icon">📖</div>
+        <div class="mode-name">Terim & Tanım</div>
+        <div class="mode-desc">Part B formatı — kavramları yaz ve açıkla</div>
+      </div>
+      <div class="mode-card" data-mode="speed" onclick="selectMode(this)">
+        <div class="mode-icon">⚡</div>
+        <div class="mode-name">Hızlı Tur</div>
+        <div class="mode-desc">10 soru, 60 saniye baskısı altında hızlı tekrar</div>
+      </div>
+    </div>
+
+    <div class="topic-filter">
+      <div class="topic-filter-title">Konu Filtresi</div>
+      <div class="topic-chips">
+        <div class="chip active" data-topic="all" onclick="toggleTopic(this)">Tümü</div>
+        <div class="chip" data-topic="myth" onclick="toggleTopic(this)">Myth &amp; Nature</div>
+        <div class="chip" data-topic="homeric" onclick="toggleTopic(this)">Homeric World</div>
+        <div class="chip" data-topic="political" onclick="toggleTopic(this)">Political Evolution</div>
+        <div class="chip" data-topic="hebrews" onclick="toggleTopic(this)">Hebrews &amp; Judaism</div>
+        <div class="chip" data-topic="egypt" onclick="toggleTopic(this)">Egypt</div>
+      </div>
+    </div>
+
+    <button class="btn-start" onclick="startQuiz()">Sınava Başla →</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     QUIZ SCREEN
+════════════════════════════════════════ -->
+<div id="screen-quiz" class="screen">
+  <div class="quiz-top-bar">
+    <div class="quiz-top-left">
+      <span class="q-counter" id="q-counter">1 / 20</span>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="timer-display" id="timer-display">⏱ —:——</div>
+    <div class="score-live" id="score-live">✦ 0</div>
+  </div>
+
+  <div class="quiz-body">
+    <div class="q-card" id="q-card">
+      <!-- injected by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     RESULTS SCREEN
+════════════════════════════════════════ -->
+<div id="screen-results" class="screen">
+  <div class="results-wrap">
+    <div class="results-header">
+      <div class="grade-circle">
+        <div class="grade-score" id="res-score">0</div>
+        <div class="grade-total" id="res-total">/ 0</div>
+      </div>
+      <div class="grade-label" id="res-label">—</div>
+      <div class="grade-sublabel" id="res-sublabel">—</div>
+    </div>
+
+    <div class="results-stats">
+      <div class="stat-box">
+        <div class="stat-val green" id="res-correct">0</div>
+        <div class="stat-lbl">Doğru</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val red" id="res-wrong">0</div>
+        <div class="stat-lbl">Yanlış</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val gold" id="res-time">—</div>
+        <div class="stat-lbl">Süre</div>
+      </div>
+    </div>
+
+    <div class="topic-breakdown">
+      <div class="breakdown-title">Konu Bazında Performans</div>
+      <div id="topic-breakdown-rows"></div>
+    </div>
+
+    <div class="review-list">
+      <div class="review-title">Gözden Geçir — Yanlış &amp; Atlanan</div>
+      <div id="review-items"></div>
+    </div>
+
+    <div class="results-actions">
+      <button class="btn-retry" onclick="retryQuiz()">Tekrar Dene</button>
+      <button class="btn-home" onclick="goHome()">← Ana Menü</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  QUESTION BANK
+// ════════════════════════════════════════════════════════
+const QUESTIONS = [
+
+// ── MYTH ────────────────────────────────────────────────
+{id:1, topic:'myth', type:'mcq',
+ q: 'Yunanca <strong>muthos</strong> kelimesinin temel anlamı nedir?',
+ opts:['Tanrı', 'Hikâye / söylenen şey', 'Ritüel', 'Tarih'],
+ ans:1,
+ exp: 'Muthos, Yunancada "hikâye, söylenen/söylüp dökün şey" anlamına gelir. Mitoloji (muthologia) terimini ilk kullanan <em>Platon</em>\'dur; ona göre bu "hikâye anlatımı" demekti.'
+},
+{id:2, topic:'myth', type:'mcq',
+ q: 'Mitlerin ritüellerden türediğini savunan "Cambridge Okulu"\'nun üyeleri kimlerdir?',
+ opts:['Freud, Jung, Durkheim, Eliade', 'Harrison, Murray, Cook, Cornford', 'Plato, Aristotle, Homer, Hesiod', 'Lang, Tyler, Frazer, Malinowski'],
+ ans:1,
+ exp: 'Cambridge Okulu\'nun başlıca temsilcileri <em>Jane Harrison, Gilbert Murray, A.B. Cook ve F.M. Cornford</em>\'dur. Bu okul, tüm mitlerin ritüellere bağlı olduğunu ileri sürdü.'
+},
+{id:3, topic:'myth', type:'mcq',
+ q: 'Andrew Lang\'a göre mitler nedir?',
+ opts:['Kolektif bilinç ürünleri', 'İlkel bir bilim türü', 'Ritüellerin sembolik yansımaları', 'Siyasi propagandanın araçları'],
+ ans:1,
+ exp: 'Andrew Lang mitler için "ilkel bir bilim türü" (a kind of primitive science) ifadesini kullandı — doğal olayları açıklama girişimi olarak değerlendirdi.'
+},
+{id:4, topic:'myth', type:'mcq',
+ q: 'Freud\'un mit teorisinin merkezinde hangi kavram yer alır?',
+ opts:['Kolektif bilinç', 'Bilinçdışı (unconscious mind)', 'Yaratıcı dönem', 'Sosyal charter'],
+ ans:1,
+ exp: '<em>Freud</em> mitlerle rüyaların her ikisinin de <em>bilinçdışı</em>\'nın ürünleri olduğunu savundu. Bastırılmış duygular ve sembolik ifade onun teorisinin özüdür.'
+},
+{id:5, topic:'myth', type:'mcq',
+ q: 'Bir hikâyeyi "gelenek" haline getiren temel koşul nedir?',
+ opts:['Yazıya geçirilmiş olması', 'Dinî bir ritüele eşlik etmesi', 'Toplumun çoğunluğu tarafından benimsenmesi ve içselleştirilmesi', 'Tarihsel olaylara dayanması'],
+ ans:2,
+ exp: 'Bir hikâye ancak içerdiği unsurlar toplumun büyük çoğunluğu tarafından <em>benimsenir ve içselleştirilirse</em> geleneksel hale gelir. Her hikâye bu niteliği kazanamaz.'
+},
+{id:6, topic:'myth', type:'mcq',
+ q: 'Mit ile halk masalı (folktale) arasındaki en temel fark nedir?',
+ opts:['Halk masalları daha uzundur', 'Mitler "bir zamanlar" diye başlar, masallar başlamaz', 'Mitler tanrısal/evrensel temaları ele alırken masallar sıradan insanların sorunlarını konu alır', 'Masallar yazılı, mitler sözlüdür'],
+ ans:2,
+ exp: 'Mitler ölüm, yaratılış, kutsallık gibi büyük varoluşsal soruları ele alır; karakterleri tanrı ve yarı-tanrılardır. Masallar ise sıradan insanların arzularını, maceralarını konu alır; gerçek anlamda tanrı içermez.'
+},
+{id:7, topic:'myth', type:'mcq',
+ q: 'Hesiodos\'un <em>Theogonia</em> adlı eseri hangi konuyu işler?',
+ opts:['Truva Savaşı\'nın hikâyesi', 'Atina\'nın siyasi tarihi', 'Tanrıların doğuşu ve evrenin oluşumu (kozmogoni)', 'Odysseus\'un dönüş yolculuğu'],
+ ans:2,
+ exp: '<em>Theogonia</em>, tanrıların nasıl doğduğunu, nereden geldiklerini ve evrenin nasıl oluştuğunu anlatan kozmogoniktir. Hesiodos bu eserle varoluştan varlığa geçiş sürecini anlatmayı amaçladı.'
+},
+{id:8, topic:'myth', type:'mcq',
+ q: 'Sophokles\'in <em>Antigone</em> (441 BC) adlı tragedyasında mitler hangi amaçla kullanılmıştır?',
+ opts:['Tanrıların doğasını anlatmak için', 'Yasanın doğası ve vicdanla devlet görevi arasındaki çatışmayı tartışmak için', 'Truva Savaşı\'nın tarihini aktarmak için', 'Yunan tanrılarını Roma\'ya tanıtmak için'],
+ ans:1,
+ exp: 'Sophokles, geleneksel mitik zemine yasanın doğası ve <em>bireyin vicdanı ile devletin dayattığı yükümlülükler arasındaki çatışmayı</em> sorgulamak için başvurdu.'
+},
+{id:9, topic:'myth', type:'mcq',
+ q: 'Mitlerin zaman zaman değiştirilmesinin siyasi bir örneği nedir?',
+ opts:['Hesiodos\'un Theogonia\'yı yazması', 'Atinalıların Salamis üzerindeki haklarını meşrulaştırmak için İlyada\'yı değiştirmesi', 'Pindaros\'un mitleri şiirleştirmesi', 'Euripides\'in dramatik realizmi benimsemesi'],
+ ans:1,
+ exp: 'Atinalılar, <em>Salamis Adası</em> üzerindeki siyasi taleplerini meşrulaştırmak amacıyla İlyada\'nın bir bölümünü değiştirdi. Bu, mitlerin siyasi çıkarlar doğrultusunda nasıl manipüle edilebileceğinin somut örneğidir.'
+},
+
+// ── HOMERIC WORLD ────────────────────────────────────────
+{id:10, topic:'homeric', type:'mcq',
+ q: 'Yunan Karanlık Çağı hangi tarihler arasını kapsar ve neden bu isim verilmiştir?',
+ opts:['600–400 BC; felsefi tartışmaların azlığından', '1200–800 BC; yazılı kayıtların ortadan kalkması nedeniyle', '800–500 BC; sanatın gerilemesinden', '500–300 BC; İran saldırıları yüzünden'],
+ ans:1,
+ exp: 'Karanlık Çağ, Dor istilalarının Mykene Uygarlığı\'nı çöküşe sürüklediği <em>1200 BC\'den yaklaşık 800 BC\'ye</em> kadar sürer. Yazılı kayıtlar bu dönemde yok olduğu için tarihçiler tarafından "karanlık" olarak adlandırılmıştır.'
+},
+{id:11, topic:'homeric', type:'mcq',
+ q: 'Homeros\'a atfedilen iki temel eserden İlyada\'nın konusu nedir?',
+ opts:['Odysseus\'un Truva\'dan Ithake\'ye dönüşü', 'Achilles\'in öfkesi ve Truva Savaşı\'nın onuncu yılındaki savaşlar', 'Tanrıların doğuşu ve soyağacı', 'Atina\'nın Perslere karşı zaferi'],
+ ans:1,
+ exp: 'İlyada, <em>Achilles\'in öfkesi (menis)</em> ve Truva Savaşı\'nın onuncu yılındaki olayları işler. Savaşın tamamını değil yalnızca çok kısa bir zaman dilimini anlatır.'
+},
+{id:12, topic:'homeric', type:'mcq',
+ q: 'Homeros dönemi Yunan dinini diğer antik dinlerden ayıran en belirgin özellik nedir?',
+ opts:['Tek tanrılı olması', 'Öteki dünya merkezli ve mistik olması', 'Dünyevi ve pragmatik olması — "Do ut des" ilkesiyle işlemesi', 'Güçlü bir ruhban sınıfına dayanması'],
+ ans:2,
+ exp: 'Homeros dini <em>bu dünyaya odaklı, maddi ve pragmatiktir</em>. "Do ut des" (sana veriyorum ki sen de bana veresin) ilkesi temeldir. Cennet, cehennem ve günah kavramları yoktur; profesyonel bir ruhban sınıfı da bulunmaz.'
+},
+{id:13, topic:'homeric', type:'mcq',
+ q: 'Homeros döneminde toplumun siyasi yapısı nasıl tanımlanır?',
+ opts:['Demokratik; bütün vatandaşlar eşit söz hakkına sahipti', 'Aristokratik ve savaşçı; güç toprak ve sürüye dayanıyordu', 'Teokratik; rahipler hükümdarlara tercih edilirdi', 'Merkezi bürokrasi; çok sayıda yazılı yasa mevcuttu'],
+ ans:1,
+ exp: 'Homeros dönemi toplumu <em>kırsal, aristokratik ve savaşçıydı</em>. Güç, toprak ve sürüye dayalı zenginliği olan soylulara aitti. Monarşi vardı ancak aşiret liderliğinden çok farklı değildi.'
+},
+
+// ── POLITICAL EVOLUTION ─────────────────────────────────
+{id:14, topic:'political', type:'mcq',
+ q: '<em>Timokrasi</em> nedir ve nasıl ortaya çıktı?',
+ opts:['Zengin tüccarların yönetimi; ticaret sayesinde güç kazandılar', 'Ağır piyade zırhını karşılayabilecek kadar varlıklı kişilerin yönetimi; zırhın ucuzlamasıyla ortaya çıktı', 'Dinî liderlerin yönetimi; halkın tanrı korkusunu kullandılar', 'Halkın tamamının yönetimi; demokratik bilinç oluştu'],
+ ans:1,
+ exp: '<em>Timokrasi</em>, metallerin ucuzlaması ve üretim yöntemlerinin gelişmesiyle ağır piyade zırhına (hoplon) sahip olabilecek kadar varlıklı kişilerin siyasi güç kazanmasıyla ortaya çıktı. Askeri katılım siyasi hak anlamına geliyordu.'
+},
+{id:15, topic:'political', type:'mcq',
+ q: 'Yunan şehir devletlerinde tiranlık (tyrannis) nasıl ortaya çıktı?',
+ opts:['Yabancı fatihler yerli aristokrasiyi devirdi', 'Sınıf çatışmaları ve ekonomik karışıklıklar; demagoglar halkın desteğiyle iktidarı ele geçirdi', 'Demokratik seçimler sonucunda popüler liderler seçildi', 'Ordunun sivil yönetime karşı darbesiyle'],
+ ans:1,
+ exp: 'Sınıf çatışmaları ve ekonomik kargaşanın doğal sonucu tiranlıktı. Demagoglar yoksulların umudu haline geldi, <em>halk desteğiyle iktidarı ele geçirdi</em>. Başlangıçta yararlı olsalar da zamanla hanedan gibi yönetmeye başladılar.'
+},
+{id:16, topic:'political', type:'mcq',
+ q: 'Yunanistan\'da zeytin ve asma kültürünün yaygınlaşması yoksulları nasıl etkiledi?',
+ opts:['Yoksullar küçük işletmeler kurarak zenginleşti', 'Yoksullar ilk ürünü bekleyecek süre boyunca hayatta kalmak için borç almak zorunda kaldı ve köleliğe düştü', 'Yoksullar başka tarım ürünlerine yönelerek bağımsızlaştı', 'Yoksullar kentlere göç ederek zanaatkâr oldu'],
+ ans:1,
+ exp: 'Zeytin ve asmanın ilk ürünü vermesi yıllar aldığından yalnızca <em>zenginler bu bekleme süresini karşılayabildi</em>. Yoksullar soylulardan borç aldı; ödeyemeyince büyük bir borçlu sınıf oluştu ve çoğu köleliğe sürüklendi.'
+},
+{id:17, topic:'political', type:'mcq',
+ q: 'Siyasi evrim tablosunda oligarşiden (yönetimi az sayıda kişi) önce gelen aşama nedir?',
+ opts:['Demokrasi', 'Tiranlık', 'Aristokrasi', 'Timokrasi'],
+ ans:2,
+ exp: 'Doğru sıra: <em>Monarşi → Aristokrasi → Oligarşi → Timokrasi → Tiranlık → Demokrasi</em>. Oligarşi, aristokrasinin ticaret burjuvazisinin baskısıyla dönüşümüyle ortaya çıktı.'
+},
+
+// ── HEBREWS ─────────────────────────────────────────────
+{id:18, topic:'hebrews', type:'mcq',
+ q: '<em>Henotheizm</em> ile <em>Monoteizm</em> arasındaki temel fark nedir?',
+ opts:['Henotheizmde birden fazla tanrıya tapınılır', 'Henotheizm yalnızca kendi tanrısını kabul ederken diğer kültürlerin tanrılarının varlığını reddetmez; monoteizm tek evrensel tanrıya inanır', 'Monoteizmde birden fazla peygamber vardır', 'Henotheizm yalnızca Mısır\'a özgüdür'],
+ ans:1,
+ exp: '<em>Henotheizm</em>: kendi klanının tek tanrısına tapmak ancak başka toplulukların tanrılarının varlığını inkâr etmemek. <em>Monoteizm</em>: evrenin biricik ve mutlak yaratıcısı olan tek tanrı inancı. İbrahim klanı henotheist, Babil sürgünü sonrası Yahudiler tam anlamıyla monoteisttir.'
+},
+{id:19, topic:'hebrews', type:'mcq',
+ q: 'Exodus (Çıkış) nedir ve dini açıdan önemi nedir?',
+ opts:['İsrail Krallığı\'nın Asur\'u fethetmesi', 'Musa önderliğinde İsrailli kölelerin Mısır\'dan ayrılması; İsrail halkının kimliği ve dininin temel olayı', 'Babil\'den sürgünden dönüş', 'Süleyman\'ın tapınağının inşası'],
+ ans:1,
+ exp: '<em>Exodus (MÖ 13. yy)</em>, Musa önderliğinde Yahweh\'i benimsedikten sonra Mısır\'dan çıkıştır. Bu olay, İsrail halkının kimliğinin, Sinai\'deki antlaşmanın ve tektanrıcılığa gidişin başlangıcıdır.'
+},
+{id:20, topic:'hebrews', type:'mcq',
+ q: 'Yahudilerin tektanrıcılığa geçişi hangi tarihsel olayla doğrudan ilişkilendirilir?',
+ opts:['Mısır\'dan Çıkış (Exodus)', 'Süleyman\'ın tapınağı inşa etmesi', 'Babil Sürgünü — İsrail elitinin Babil\'e sürgün edilmesi', 'Persler\'in Babil\'i fethetmesi'],
+ ans:2,
+ exp: '<em>Babil Sürgünü</em> dönüşüm noktasıdır. Sürgündeki Yahudiler antlaşmayı yeniden düşünürken Yahweh\'i yalnızca kendi tanrıları değil, evrenin tek yaratıcısı olarak kabul ettiler. Bu, tam monoteizmin doğuşudur.'
+},
+{id:21, topic:'hebrews', type:'mcq',
+ q: 'Kral Süleyman\'ın uygulamaları neden dini açıdan sorunlu bulundu?',
+ opts:['Yahudilere yeni bir alfabe getirdi', 'Ağır vergiler, kölelik ve yabancı kültlerle evlilikleri, Yahweh ile yapılan antlaşmayı ihlal etti', 'Monarşiyi lağvedip oligarşi kurdu', 'Tevrat\'ı yok etmeye çalıştı'],
+ ans:1,
+ exp: 'Süleyman <em>ağır vergi</em> uyguladı, Fenikelilere olan borcunu ödemek için İsraillileri köle olarak çalıştırdı ve komşu prenseslerle evlenerek yabancı kültlerin pratiğe girmesine izin verdi — bunlar Yahweh ile yapılan antlaşmayı ihlal ediyordu.'
+},
+{id:22, topic:'hebrews', type:'mcq',
+ q: 'Tevrat (Tora) nedir ve Yahudilikte önemi nedir?',
+ opts:['Yahudi dua kitabı', 'Musa\'nın beş kitabı — Musa döneminden gelen ve Babil sürgününde tapınak ibadetinin yerini alan sözlü gelenek', 'Peygamberlerin kehanetlerini içeren kitap', 'Yahudi devlet anayasası'],
+ ans:1,
+ exp: '<em>Tora</em>, Musa\'nın beş kitabıdır (İbranilerin "töre/gelenek"). Babil sürgünü sırasında tapınak ibadeti yerine <em>Tora\'nın yoğun çalışması</em> geçti ve bu metin Yahudi kimliğinin merkezine oturdu.'
+},
+
+// ── EGYPT ───────────────────────────────────────────────
+{id:23, topic:'egypt', type:'mcq',
+ q: 'Mısır\'da "İlahi Krallık" (Divine Kingship) kavramının temel anlamı nedir?',
+ opts:['Firavunun yalnızca siyasi lider olması', 'Firavunun güneş tanrısının oğlu/yeryüzündeki temsilcisi sayılması; bu inancın Mısır hayatının temel taşı olması', 'Firavunun yalnızca dinî lider olması', 'Firavunun halkı tarafından seçilmesi'],
+ ans:1,
+ exp: 'İlahi Krallık, Mısır yaşamının <em>köşe taşıydı</em>. Firavunlar güneş tanrısının oğlu/yeryüzündeki temsilcileri olarak görüldü; bu inanç onların siyasi otoritesini de kutsal kıldı ve sorgulanamaz hale getirdi.'
+},
+{id:24, topic:'egypt', type:'mcq',
+ q: 'Piramitlerin inşa edilmesinin iki temel amacı nedir?',
+ opts:['Tahıl depolamak ve askeri üs olarak kullanmak', 'Firavunların mezarları olarak monarşiyi güçlendirmek ve ölü firavunların ibadetini sağlamak', 'Yabancı ticaret kervanları için kervansaray işlevi görmek', 'Tanrılara yapılan kurban törenlerinin mekânı olmak'],
+ ans:1,
+ exp: 'Piramitler hem <em>firavunların mezarları</em> hem de monarşiyi pekiştirme aracıydı. Önceki firavunların kalıntılarının korunması ve onlara tapınılması, yaşayan firavunun imgesini güçlendirdi.'
+},
+{id:25, topic:'egypt', type:'mcq',
+ q: 'Mısır\'ın Mezopotamya\'dan en önemli coğrafi avantajı neydi?',
+ opts:['Geniş ticaret yollarına sahip olması', 'Çöller ve Kızıldeniz tarafından çevrilmesi — doğal bir koruma kalkanı sağlaması', 'Büyük bir orduya sahip olması', 'Verimli ormanlık alanlara sahip olması'],
+ ans:1,
+ exp: 'Mısır, <em>çöller ve Kızıldeniz</em> tarafından çevrilmesinin sağladığı doğal bariyer sayesinde Mezopotamya\'nın maruz kaldığı yabancı istilalardan büyük ölçüde korundu; bu durum daha istikrarlı ve barışçıl bir toplum yapısına zemin hazırladı.'
+},
+{id:26, topic:'egypt', type:'mcq',
+ q: 'Eski Mısır\'da para sisteminin yokluğunda alışveriş nasıl gerçekleşirdi?',
+ opts:['Buğday ile takas', 'Bakır ya da altın halkalar — tarihin bilinen en eski para birimi', 'Hayvan ticareti', 'Firavun tarafından çıkarılan kâğıt belgeler'],
+ ans:1,
+ exp: 'Mısır\'da madeni para henüz yoktu; bunun yerine <em>bakır ve altın halkalar</em> tedavüldeydi. Bu, tarihin bilinen en eski para sistemi olarak kabul edilir.'
+},
+{id:27, topic:'egypt', type:'mcq',
+ q: 'MÖ 525\'te Mısır medeniyetine son darbeyi vuran güç hangisidir?',
+ opts:['Asurlular', 'Makedonyalılar', 'Persler', 'Romalılar'],
+ ans:2,
+ exp: 'Mısır MÖ 675\'te Asurlular, ardından MÖ 525\'te <em>Persler</em> tarafından fethedildi. Pers fethiyle Mısır\'ın bağımsızlığı fiilen sona erdi.'
+},
+
+// ── CROSS-TOPIC / KARIŞIK ───────────────────────────────
+{id:28, topic:'myth', type:'mcq',
+ q: 'Aşağıdakilerden hangisi Mircea Eliade\'nin mit teorisinin özüdür?',
+ opts:['Mitler bilinçdışının rüya benzeri ürünleridir', 'Mitler ilkel bilim girişimleridir', 'Tüm mitler, nesnelerin oluşup düzenlendiği yaratılış çağını yeniden üretir', 'Mitler yalnızca ritüeller aracılığıyla anlaşılabilir'],
+ ans:2,
+ exp: '<em>Mircea Eliade</em>\'ye göre tüm mitler, tarihin başlamasından önce her şeyin yaratılıp düzenlendiği "yaratıcı dönem"i (creative era) yeniden üretir. Bu dönemin yeniden canlandırılması yaratıcı gücünü geri getirir.'
+},
+{id:29, topic:'hebrews', type:'mcq',
+ q: 'Sürgünden dönen Yahudilerin taşıdığı yeni dinî anlayış olan <em>Yahudilik</em>\'in temel ilkesi nedir?',
+ opts:['Bütün dinlerle hoşgörü ve uyum', 'Ayrılıkçılık ve ulusal saflık — Yahudiliği diğer dinî ve kültürel etkilerden arındırma', 'Yahweh\'in birden fazla formunun kabulü', 'Tapınak ibadetinin merkezi önem kazanması'],
+ ans:1,
+ exp: 'Yahudilik\'in temel ilkesi <em>ayrılıkçılık ve ulusal saflık</em>tır. Yalnızca Yahweh\'e sadık kalanlar ve yabancı evliliklerden kaçınanlar Tora\'nın gerçek yorumcusu sayılırdı. Sinagog bu prensibi pekiştirdi.'
+},
+{id:30, topic:'egypt', type:'mcq',
+ q: 'Emile Durkheim\'ın mitlere ilişkin görüşü nedir?',
+ opts:['Mitler bireysel bilinçdışının ürünleridir', 'Mitler kolektif zihnin kendini ifade ettiği ortamlardır; bireysel hayal gücü toplumsal ilgilerle bütünleşir', 'Mitler yalnızca ritüellerin açıklamalarıdır', 'Mitler tarihî gerçeklerin çarpıtılmış versiyonlarıdır'],
+ ans:1,
+ exp: '<em>Durkheim</em>\'a göre mitler <em>kolektif zihnin</em> kendini ifade ettiği biçimlerdir. Bireysel hayal gücü, toplumsal birimin ortak ilgi ve önyargılarıyla harmanlanarak mitleri ve dinî fikirleri doğurur.'
+},
+
+// ── TERM TYPE QUESTIONS ─────────────────────────────────
+{id:31, topic:'myth', type:'term',
+ q: '<strong>Efsane (Legend)</strong> ile <strong>Mit (Myth)</strong> arasındaki farkı açıklayın.',
+ keywords:['tarih','gerçek','actual','tanrı','evrensel','timeless','kahramanlar','glorif'],
+ model: 'Efsane (legend) her zaman bir ölçüde gerçeğe dayanır; tarihî kişi ve olayları abartır/çarpıtır, amacı geçmişi yüceltmektir. Mitler ise "tanrısız zaman"da geçer — tanrı ve yarı-tanrıları içerir, yaratılış, ölüm, köken gibi büyük varoluşsal sorularla ilgilenir, zamansız bir geçmişte kurgulanır.'
+},
+{id:32, topic:'hebrews', type:'term',
+ q: '<strong>Babil Sürgünü (Babylonian Captivity)</strong>\'nü ve Yahudi dini açısından önemini açıklayın.',
+ keywords:['babil','sürgün','monoteizm','yahweh','evrensel','tora','yahudili'],
+ model: 'MÖ 586\'da Nebukadnezar II Kudüs\'ü yaktı ve Yahuda elitini Babil\'e sürgün etti. Sürgündeki Yahudiler, Yahweh\'i yalnızca kendi tanrıları değil, evrenin tek yaratıcısı olarak tanımladı — henotheizmden tam monoteizme geçiş yaşandı. Tapınak ibadeti yerini Tora\'nın yoğun çalışmasına bıraktı; Yahudi dini sürülerin elinde biçimlendi.'
+},
+{id:33, topic:'egypt', type:'term',
+ q: '<strong>İlahi Krallık (Divine Kingship)</strong> kavramını Mısır uygarlığı bağlamında tanımlayın.',
+ keywords:['firavun','tanrı','güneş','meşruiyet','piramit','ölüm','temsil','siyasi'],
+ model: 'İlahi Krallık, firavunun güneş tanrısının oğlu ya da yeryüzündeki temsilcisi sayıldığı Mısır\'a özgü siyasi-dinî sistemdir. Mısır hayatının temel taşıdır. Firavunun kutsal statüsü monarkın otoritesini meşrulaştırır ve devrimleri önler. Piramitler bu düzeni destekler: ölü firavunlara tapınmak yaşayan firavunun imgesini güçlendirir.'
+},
+{id:34, topic:'political', type:'term',
+ q: '<strong>Tiranlık (Tyrannis)</strong> kavramını Yunan şehir devletleri bağlamında açıklayın.',
+ keywords:['sınıf','çatışma','demagog','halk','anayasa','dışı','kişisel','hanedan'],
+ model: 'Tiranlık, sınıf çatışmalarının ve ekonomik bozulmanın yarattığı ortamda güçlü kişilerin halk desteğiyle anayasadışı yollarla iktidara el koymasıdır. Tiranlar başlangıçta fakir sınıfların umut kapısıydı; kaosa son vereceklerini vaat ettiler. Zamanla hanedan gibi yönetmeye başlayınca "gaspçı" olarak görüldüler; düşüşleri demokratik bilincin gelişmesini hızlandırdı.'
+},
+{id:35, topic:'myth', type:'term',
+ q: '<strong>Cambridge Okulu</strong>\'nun mit anlayışını açıklayın.',
+ keywords:['ritüel','din','harrison','murray','cook','cornford','kutsal','türev'],
+ model: 'Cambridge Okulu (Jane Harrison, Gilbert Murray, A.B. Cook, F.M. Cornford) tüm mitlerin ritüellere — dinî ya da kutsal eylemlere — bağımlı olduğunu savundu. Mit, ritüelin söyleme dökülen açıklamasıdır; ritüel ondan önce gelir. Din tarihçileri de bu ilişkiye odaklanmıştır.'
+},
+];
+
+// ════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════
+let state = {
+  mode: 'mixed',
+  topics: ['all'],
+  questions: [],
+  current: 0,
+  score: 0,
+  results: [],
+  timer: null,
+  elapsed: 0,
+  timeLimit: 0,
+  answered: false,
+};
+
+// ════════════════════════════════════════════════════════
+//  HOME LOGIC
+// ════════════════════════════════════════════════════════
+function selectMode(el) {
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  state.mode = el.dataset.mode;
+}
+
+function toggleTopic(el) {
+  if (el.dataset.topic === 'all') {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    state.topics = ['all'];
+    return;
+  }
+  const allChip = document.querySelector('.chip[data-topic="all"]');
+  allChip.classList.remove('active');
+  el.classList.toggle('active');
+  state.topics = Array.from(document.querySelectorAll('.chip.active')).map(c => c.dataset.topic);
+  if (state.topics.length === 0) {
+    allChip.classList.add('active');
+    state.topics = ['all'];
+  }
+}
+
+function startQuiz() {
+  // Filter questions
+  let pool = QUESTIONS.filter(q => {
+    if (state.topics.includes('all')) return true;
+    return state.topics.includes(q.topic);
+  });
+
+  // Filter by type
+  if (state.mode === 'mcq') pool = pool.filter(q => q.type === 'mcq');
+  else if (state.mode === 'term') pool = pool.filter(q => q.type === 'term');
+
+  // Shuffle
+  pool = shuffle([...pool]);
+
+  // Limit
+  const limit = state.mode === 'speed' ? 10 : Math.min(pool.length, 20);
+  state.questions = pool.slice(0, limit);
+  state.current = 0;
+  state.score = 0;
+  state.results = [];
+  state.answered = false;
+  state.elapsed = 0;
+
+  if (state.mode === 'speed') {
+    state.timeLimit = 60;
+  } else {
+    state.timeLimit = 0;
+  }
+
+  showScreen('screen-quiz');
+  renderQuestion();
+  startTimer();
+}
+
+// ════════════════════════════════════════════════════════
+//  QUIZ LOGIC
+// ════════════════════════════════════════════════════════
+function renderQuestion() {
+  const q = state.questions[state.current];
+  const total = state.questions.length;
+  const pct = ((state.current) / total) * 100;
+
+  document.getElementById('q-counter').textContent = `${state.current + 1} / ${total}`;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('score-live').textContent = `✦ ${state.score}`;
+
+  const card = document.getElementById('q-card');
+
+  const topicLabel = {
+    myth: 'Myth & Nature', homeric: 'Homeric World',
+    political: 'Political Evolution', hebrews: 'Hebrews & Judaism', egypt: 'Egypt'
+  }[q.topic];
+
+  const typeLabel = q.type === 'mcq' ? 'Çoktan Seçmeli' : q.type === 'term' ? 'Terim' : 'Eşleştirme';
+  const badgeClass = q.type === 'mcq' ? 'badge-mcq' : q.type === 'term' ? 'badge-term' : 'badge-connect';
+
+  let bodyHTML = '';
+
+  if (q.type === 'mcq') {
+    const labels = ['A', 'B', 'C', 'D'];
+    bodyHTML = `
+      <div class="options-list" id="opts-list">
+        ${q.opts.map((o, i) => `
+          <button class="opt-btn" onclick="selectOpt(${i})" id="opt-${i}">
+            <span class="opt-label">${labels[i]}</span>
+            <span>${o}</span>
+          </button>`).join('')}
+      </div>
+      <div class="feedback-box" id="feedback-box"></div>
+      <div class="q-actions">
+        <button class="btn-check" id="btn-check" onclick="checkMCQ()" disabled>Kontrol Et</button>
+        <button class="btn-next show" id="btn-next" onclick="nextQuestion()" style="display:none">Sonraki →</button>
+        <button class="btn-skip" onclick="skipQuestion()">Atla</button>
+      </div>
+      <div class="kb-hint">Klavye: <span class="kb-key">A</span> <span class="kb-key">B</span> <span class="kb-key">C</span> <span class="kb-key">D</span> seç &nbsp;·&nbsp; <span class="kb-key">Enter</span> kontrol et &nbsp;·&nbsp; <span class="kb-key">→</span> sonraki</div>
+    `;
+  } else {
+    bodyHTML = `
+      <div class="term-prompt">${q.model ? '<em>Anahtar kavramları kullanarak açıklayın:</em>' : ''}</div>
+      <textarea class="term-input" id="term-input" placeholder="Tanımınızı buraya yazın..." rows="4"></textarea>
+      <div class="feedback-box" id="feedback-box"></div>
+      <div class="q-actions">
+        <button class="btn-check" id="btn-check" onclick="checkTerm()">Cevabı Gör</button>
+        <button class="btn-next" id="btn-next" onclick="nextQuestion()" style="display:none">Sonraki →</button>
+        <button class="btn-skip" onclick="skipQuestion()">Atla</button>
+      </div>
+    `;
+  }
+
+  card.innerHTML = `
+    <div class="q-meta">
+      <span class="q-type-badge ${badgeClass}">${typeLabel}</span>
+      <span class="q-topic-tag">${topicLabel}</span>
+    </div>
+    <div class="q-text">${q.q}</div>
+    ${bodyHTML}
+  `;
+
+  state.answered = false;
+  state.selectedOpt = null;
+  card.style.animation = 'none';
+  requestAnimationFrame(() => { card.style.animation = 'fadeUp 0.35s forwards'; });
+}
+
+let selectedOpt = null;
+
+function selectOpt(i) {
+  if (state.answered) return;
+  selectedOpt = i;
+  document.querySelectorAll('.opt-btn').forEach((b, idx) => {
+    b.classList.remove('selected-opt');
+    b.querySelector('.opt-label').style.borderColor = '';
+    b.querySelector('.opt-label').style.color = '';
+  });
+  const btn = document.getElementById(`opt-${i}`);
+  btn.querySelector('.opt-label').style.borderColor = 'var(--accent)';
+  btn.querySelector('.opt-label').style.color = 'var(--accent)';
+  btn.style.borderColor = 'var(--accent)';
+  btn.style.background = 'var(--surface2)';
+  document.getElementById('btn-check').disabled = false;
+}
+
+function checkMCQ() {
+  if (state.answered || selectedOpt === null) return;
+  state.answered = true;
+  const q = state.questions[state.current];
+  const correct = q.ans;
+  const chosen = selectedOpt;
+  const isCorrect = chosen === correct;
+
+  document.querySelectorAll('.opt-btn').forEach((b, i) => {
+    b.disabled = true;
+    b.style.borderColor = '';
+    b.style.background = '';
+    if (i === correct) { b.classList.add('correct'); }
+    else if (i === chosen && !isCorrect) { b.classList.add('wrong'); }
+  });
+
+  showFeedback(isCorrect, q.exp);
+  if (isCorrect) state.score++;
+  document.getElementById('score-live').textContent = `✦ ${state.score}`;
+  state.results.push({ q, chosen, isCorrect, skipped: false });
+  document.getElementById('btn-check').style.display = 'none';
+  document.getElementById('btn-next').style.display = 'block';
+}
+
+function checkTerm() {
+  state.answered = true;
+  const q = state.questions[state.current];
+  const input = document.getElementById('term-input').value.trim();
+  const fb = document.getElementById('feedback-box');
+  fb.classList.remove('correct-fb', 'wrong-fb');
+  fb.classList.add('show', 'correct-fb');
+  fb.innerHTML = `
+    <div class="fb-label">✓ Model Cevap</div>
+    <div class="fb-text">${q.model}</div>
+  `;
+  state.results.push({ q, chosen: input, isCorrect: null, skipped: !input });
+  document.getElementById('btn-check').style.display = 'none';
+  document.getElementById('btn-next').style.display = 'block';
+  if (input) state.score++;
+  document.getElementById('score-live').textContent = `✦ ${state.score}`;
+}
+
+function showFeedback(isCorrect, exp) {
+  const fb = document.getElementById('feedback-box');
+  fb.classList.add('show', isCorrect ? 'correct-fb' : 'wrong-fb');
+  fb.innerHTML = `
+    <div class="fb-label">${isCorrect ? '✓ Doğru!' : '✗ Yanlış'}</div>
+    <div class="fb-text">${exp}</div>
+  `;
+}
+
+function skipQuestion() {
+  const q = state.questions[state.current];
+  state.results.push({ q, chosen: null, isCorrect: false, skipped: true });
+  nextQuestion();
+}
+
+function nextQuestion() {
+  state.current++;
+  if (state.current >= state.questions.length) {
+    finishQuiz();
+    return;
+  }
+  selectedOpt = null;
+  renderQuestion();
+  document.getElementById('q-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ════════════════════════════════════════════════════════
+//  TIMER
+// ════════════════════════════════════════════════════════
+function startTimer() {
+  clearInterval(state.timer);
+  state.elapsed = 0;
+  updateTimerDisplay();
+  state.timer = setInterval(() => {
+    state.elapsed++;
+    if (state.timeLimit > 0 && state.elapsed >= state.timeLimit) {
+      clearInterval(state.timer);
+      finishQuiz();
+      return;
+    }
+    updateTimerDisplay();
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('timer-display');
+  if (!el) return;
+  if (state.timeLimit > 0) {
+    const remain = state.timeLimit - state.elapsed;
+    const m = Math.floor(remain / 60);
+    const s = remain % 60;
+    el.textContent = `⏱ ${m}:${String(s).padStart(2,'0')}`;
+    el.classList.toggle('warn', remain <= 10);
+  } else {
+    const m = Math.floor(state.elapsed / 60);
+    const s = state.elapsed % 60;
+    el.textContent = `⏱ ${m}:${String(s).padStart(2,'0')}`;
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  RESULTS
+// ════════════════════════════════════════════════════════
+function finishQuiz() {
+  clearInterval(state.timer);
+  showScreen('screen-results');
+
+  const total = state.results.length;
+  const correct = state.results.filter(r => r.isCorrect === true).length;
+  const wrong = state.results.filter(r => r.isCorrect === false && !r.skipped).length;
+  const pct = total ? Math.round((correct / total) * 100) : 0;
+
+  document.getElementById('res-score').textContent = pct + '%';
+  document.getElementById('res-total').textContent = `${correct} / ${total}`;
+  document.getElementById('res-correct').textContent = correct;
+  document.getElementById('res-wrong').textContent = wrong;
+
+  const m = Math.floor(state.elapsed / 60);
+  const s = state.elapsed % 60;
+  document.getElementById('res-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+
+  // Grade label
+  let label, sublabel;
+  if (pct >= 90) { label = 'Mükemmel! 🏆'; sublabel = 'Vize için hazırsın.'; }
+  else if (pct >= 75) { label = 'Çok İyi ✨'; sublabel = 'Birkaç konuya dikkat et.'; }
+  else if (pct >= 60) { label = 'Gelişme Var 📚'; sublabel = 'Yanlışlarını gözden geçir.'; }
+  else { label = 'Çalışmaya Devam 💪'; sublabel = 'Notlarına dön ve tekrar dene.'; }
+  document.getElementById('res-label').textContent = label;
+  document.getElementById('res-sublabel').textContent = sublabel;
+
+  // Topic breakdown
+  const topics = ['myth','homeric','political','hebrews','egypt'];
+  const topicNames = { myth:'Myth & Nature', homeric:'Homeric World', political:'Political Evolution', hebrews:'Hebrews & Judaism', egypt:'Egypt' };
+  const rows = document.getElementById('topic-breakdown-rows');
+  rows.innerHTML = '';
+  topics.forEach(t => {
+    const tqs = state.results.filter(r => r.q.topic === t);
+    if (!tqs.length) return;
+    const tc = tqs.filter(r => r.isCorrect === true).length;
+    const tpct = Math.round((tc / tqs.length) * 100);
+    rows.innerHTML += `
+      <div class="topic-row">
+        <div class="topic-row-name">${topicNames[t]}</div>
+        <div class="topic-bar-bg"><div class="topic-bar-fill" style="width:${tpct}%; background: ${tpct>=70?'var(--green)':tpct>=50?'var(--accent)':'var(--red)'}"></div></div>
+        <div class="topic-pct">${tpct}%</div>
+      </div>`;
+  });
+
+  // Review wrong/skipped
+  const revItems = document.getElementById('review-items');
+  revItems.innerHTML = '';
+  const toReview = state.results.filter(r => r.isCorrect !== true);
+  if (!toReview.length) {
+    revItems.innerHTML = '<div style="color:var(--green);font-size:14px;padding:12px 0;">🎉 Tüm soruları doğru yanıtladın!</div>';
+  } else {
+    toReview.forEach(r => {
+      const topicN = { myth:'Myth', homeric:'Homeric', political:'Political', hebrews:'Hebrews', egypt:'Egypt' }[r.q.topic];
+      const qText = r.q.q.replace(/<[^>]+>/g, '');
+      let revHTML = `<div class="review-item ${r.isCorrect===false?'ri-wrong':''}">
+        <div class="ri-tag">${topicN} · ${r.q.type==='mcq'?'MCQ':'Terim'}</div>
+        <div class="ri-q">${qText.substring(0,120)}${qText.length>120?'…':''}</div>`;
+      if (r.q.type === 'mcq') {
+        if (r.skipped) { revHTML += `<div class="ri-your">— Atlandı</div>`; }
+        else { revHTML += `<div class="ri-your">✗ Seçilen: ${r.q.opts[r.chosen]}</div>`; }
+        revHTML += `<div class="ri-correct-ans">✓ Doğru: ${r.q.opts[r.q.ans]}</div>`;
+      } else {
+        revHTML += `<div class="ri-correct-ans" style="font-size:12px;margin-top:4px;">${r.q.model.substring(0,200)}…</div>`;
+      }
+      revHTML += '</div>';
+      revItems.innerHTML += revHTML;
+    });
+  }
+}
+
+function retryQuiz() { startQuiz(); }
+function goHome() {
+  clearInterval(state.timer);
+  showScreen('screen-home');
+}
+
+// ════════════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ════════════════════════════════════════════════════════
+//  KEYBOARD SHORTCUTS
+// ════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (document.getElementById('screen-quiz').classList.contains('active')) {
+    const q = state.questions[state.current];
+    if (!q || q.type !== 'mcq') return;
+    const map = { 'a': 0, 'b': 1, 'c': 2, 'd': 3 };
+    if (map[e.key.toLowerCase()] !== undefined && !state.answered) {
+      selectOpt(map[e.key.toLowerCase()]);
+    }
+    if (e.key === 'Enter') {
+      if (!state.answered && selectedOpt !== null) checkMCQ();
+      else if (state.answered) nextQuestion();
+    }
+    if (e.key === 'ArrowRight' && state.answered) nextQuestion();
+  }
+});
+</script>
+</body>
+</html>
