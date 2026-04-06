@@ -789,9 +789,15 @@ function renderQuestion(){
   let bodyHTML='';
   if(q.type==='mcq'){
     const labels=['A','B','C','D'];
+    // Shuffle options, track where correct answer lands
+    const indices=shuffle([0,1,2,3]);
+    const shuffledOpts=indices.map(i=>q.opts[i]);
+    const shuffledAns=indices.indexOf(q.ans);
+    state.shuffledOpts=shuffledOpts;
+    state.shuffledAns=shuffledAns;
     bodyHTML=`
       <div class="options-list" id="opts-list">
-        ${q.opts.map((o,i)=>`<button class="opt-btn" onclick="selectOpt(${i})" id="opt-${i}"><span class="opt-label">${labels[i]}</span><span>${o}</span></button>`).join('')}
+        ${shuffledOpts.map((o,i)=>`<button class="opt-btn" onclick="selectOpt(${i})" id="opt-${i}"><span class="opt-label">${labels[i]}</span><span>${o}</span></button>`).join('')}
       </div>
       <div class="feedback-box" id="feedback-box"></div>
       <div class="q-actions">
@@ -837,10 +843,12 @@ function checkMCQ(){
   if(state.answered||selectedOpt===null) return;
   state.answered=true;
   const q=state.questions[state.current];
-  const isCorrect=selectedOpt===q.ans;
+  const sAns=state.shuffledAns;
+  const sOpts=state.shuffledOpts;
+  const isCorrect=selectedOpt===sAns;
   document.querySelectorAll('.opt-btn').forEach((b,i)=>{
     b.disabled=true; b.style.borderColor=''; b.style.background='';
-    if(i===q.ans) b.classList.add('correct');
+    if(i===sAns) b.classList.add('correct');
     else if(i===selectedOpt&&!isCorrect) b.classList.add('wrong');
   });
   const fb=document.getElementById('feedback-box');
@@ -848,7 +856,7 @@ function checkMCQ(){
   fb.innerHTML=`<div class="fb-label"><span class="en">${isCorrect?'✓ Correct!':'✗ Wrong'}</span><span class="tr">${isCorrect?'✓ Doğru!':'✗ Yanlış'}</span></div><div class="fb-text">${q.exp}</div>`;
   if(isCorrect) state.score++;
   document.getElementById('score-live').textContent=`✦ ${state.score}`;
-  state.results.push({q,chosen:selectedOpt,isCorrect,skipped:false});
+  state.results.push({q,chosen:selectedOpt,isCorrect,skipped:false,shuffledOpts:sOpts,shuffledAns:sAns});
   document.getElementById('btn-check').style.display='none';
   document.getElementById('btn-next').style.display='block';
 }
@@ -968,8 +976,8 @@ function finishQuiz(){
       const selectedStr = currentLang==='en' ? '✗ Selected: ' : '✗ Seçilen: ';
       const correctStr = currentLang==='en' ? '✓ Correct: ' : '✓ Doğru: ';
       
-      h+=r.skipped?`<div class="ri-your">${skippedStr}</div>`:`<div class="ri-your">${selectedStr}${localizedQ.opts[r.chosen]}</div>`;
-      h+=`<div class="ri-correct-ans">${correctStr}${localizedQ.opts[localizedQ.ans]}</div>`;
+      h+=r.skipped?`<div class="ri-your">${skippedStr}</div>`:`<div class="ri-your">${selectedStr}${(r.shuffledOpts||localizedQ.opts)[r.chosen]}</div>`;
+      h+=`<div class="ri-correct-ans">${correctStr}${(r.shuffledOpts||localizedQ.opts)[r.shuffledAns!==undefined?r.shuffledAns:localizedQ.ans]}</div>`;
     } else {
       h+=`<div class="ri-correct-ans" style="font-size:12px;margin-top:4px;">${localizedQ.model.substring(0,180)}…</div>`;
     }
